@@ -1,0 +1,34 @@
+# C++
+engine/build/
+cmake-build-*/
+*.o
+*.obj
+*.exe
+*.dll
+*.so
+*.a
+*.lib
+
+# Java
+service/target/
+service/.mvn/
+*.class
+
+# Python
+etl/__pycache__/
+etl/.venv/
+etl/*.egg-info/
+**/__pycache__/
+
+# IDE
+.vs/
+.idea/
+*.user
+
+# Docker / infra
+infra/terraform/.terraform/
+infra/terraform/*.tfstate*
+
+# OS
+.DS_Store
+Thumbs.db
