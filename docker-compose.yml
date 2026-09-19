@@ -1,0 +1,66 @@
+# Full local end-to-end stack: Postgres+PostGIS, the Flyway migration
+# (Step 4), the C++ engine's gRPC server (Step 3), and the Spring Boot
+# service (Step 5). For DB-only work (e.g. running the Python ETL against
+# just Postgres), use db/docker-compose.yml instead -- this file is the
+# full stack, that one is scoped to the database alone.
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_DB: riskengine
+      POSTGRES_USER: riskengine
+      POSTGRES_PASSWORD: riskengine
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U riskengine -d riskengine"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  flyway:
+    image: flyway/flyway:10
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./db/migrations:/flyway/sql
+    command: >
+      -url=jdbc:postgresql://postgres:5432/riskengine
+      -user=riskengine
+      -password=riskengine
+      -connectRetries=10
+      migrate
+
+  engine:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.engine
+    ports:
+      - "50051:50051"
+
+  service:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.service
+    depends_on:
+      postgres:
+        condition: service_healthy
+      flyway:
+        condition: service_completed_successfully
+      engine:
+        condition: service_started
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/riskengine
+      SPRING_DATASOURCE_USERNAME: riskengine
+      SPRING_DATASOURCE_PASSWORD: riskengine
+      SPRING_FLYWAY_LOCATIONS: filesystem:/app/db/migrations
+      RISK_ENGINE_GRPC_HOST: engine
+      RISK_ENGINE_GRPC_PORT: 50051
+    ports:
+      - "8080:8080"
+
+volumes:
+  postgres_data:

@@ -1,0 +1,39 @@
+# Builds and runs the C++ simulation engine's gRPC server (Step 3).
+#
+# Uses apt-installed gRPC/Protobuf (Debian packages ship CMake config files
+# for both, so find_package(gRPC CONFIG) / find_package(Protobuf CONFIG) in
+# engine/CMakeLists.txt just work) instead of vcpkg -- vcpkg-from-source was
+# only needed on Windows where no prebuilt package manager equivalent
+# exists; Linux distros already package gRPC as a binary.
+FROM debian:bookworm-slim AS build
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential cmake ca-certificates git \
+    libgrpc++-dev libprotobuf-dev protobuf-compiler-grpc protobuf-compiler \
+    && rm -rf /var/lib/apt/lists/*
+# git is needed because CMake configure always processes tests/CMakeLists.txt
+# (enable_testing() + add_subdirectory(tests) run unconditionally at the top
+# level), which FetchContents Catch2 via git even though this image only
+# builds the risk_engine_server target.
+
+WORKDIR /src
+COPY engine/ engine/
+
+RUN cmake -S engine -B build -DCMAKE_BUILD_TYPE=Release \
+    && cmake --build build --target risk_engine_server -j"$(nproc)"
+
+FROM debian:bookworm-slim
+
+# Reinstalls the same -dev packages rather than hand-picking exact
+# runtime-only shared-library package names (those version-suffixed names
+# vary by Debian release and are easy to get wrong) -- a deliberate
+# simplicity-over-image-size tradeoff for this project; the -dev packages
+# pull in the matching runtime .so files as dependencies either way.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgrpc++-dev libprotobuf-dev ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=build /src/build/apps/server/risk_engine_server /usr/local/bin/risk_engine_server
+
+EXPOSE 50051
+ENTRYPOINT ["risk_engine_server"]

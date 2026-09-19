@@ -43,12 +43,17 @@ enable_testing()
 add_subdirectory(tests)
 
 # engine_core itself has zero gRPC/protobuf dependency by design -- only
-# this subdirectory (built when a vcpkg toolchain provides gRPC) knows
-# about the wire format. Configure with
-# -DCMAKE_TOOLCHAIN_FILE=<vcpkg>/scripts/buildsystems/vcpkg.cmake to enable it.
+# this subdirectory (built when a vcpkg toolchain or the system package
+# manager provides gRPC) knows about the wire format. Configure with
+# -DCMAKE_TOOLCHAIN_FILE=<vcpkg>/scripts/buildsystems/vcpkg.cmake on
+# Windows to enable it; on Linux, apt-installed libgrpc++-dev is enough.
 find_package(gRPC CONFIG QUIET)
 if(gRPC_FOUND)
-    find_package(Protobuf CONFIG REQUIRED)
+    # No CONFIG here (unlike gRPC above): vcpkg's protobuf ships a CMake
+    # config package, but Debian/Ubuntu's libprotobuf-dev only ships the
+    # classic FindProtobuf.cmake module -- omitting CONFIG lets CMake fall
+    # back to module mode wherever a config package isn't available.
+    find_package(Protobuf REQUIRED)
     add_subdirectory(apps/server)
 else()
     message(STATUS "gRPC not found -- skipping risk_engine_server target (Step 3). "

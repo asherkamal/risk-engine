@@ -1,0 +1,20 @@
+# Builds and runs the Spring Boot service layer (Step 5).
+FROM maven:3.9-eclipse-temurin-21 AS build
+
+WORKDIR /src
+COPY engine/proto engine/proto
+COPY service/ service/
+RUN mvn -f service/pom.xml -B package -DskipTests
+
+FROM eclipse-temurin:21-jre
+
+COPY --from=build /src/service/target/risk-engine-service-*.jar /app/app.jar
+# db/migrations (Step 4) baked in at a fixed path: local dev points Flyway
+# at "../db/migrations" relative to the service/ working directory, which
+# doesn't exist inside the container -- SPRING_FLYWAY_LOCATIONS (set in
+# docker-compose.yml) overrides it to this path instead. Same migration
+# files either way, no duplication of the actual SQL.
+COPY db/migrations /app/db/migrations
+
+EXPOSE 8080
+ENTRYPOINT ["java", "-jar", "/app/app.jar"]
