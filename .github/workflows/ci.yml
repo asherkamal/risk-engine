@@ -42,16 +42,21 @@ jobs:
       # SimulationControllerIntegrationTest can't run there; the domain
       # unit tests still run on both platforms. ubuntu-latest has Docker
       # natively and runs the full suite, integration test included.
+      # Invoked as "bash mvnw" rather than "./mvnw": a checkout can lose the
+      # script's executable bit in a Windows-authored commit (core.fileMode
+      # is commonly false on Windows git installs, so a local chmod +x
+      # doesn't reliably survive a commit) -- running it through bash
+      # directly doesn't depend on that bit at all.
       - name: Run Java tests (Linux, full suite incl. Testcontainers)
         if: runner.os == 'Linux'
         working-directory: service
-        run: ./mvnw --batch-mode test
+        run: bash mvnw --batch-mode test
 
       - name: Run Java tests (Windows, domain unit tests only)
         if: runner.os == 'Windows'
         working-directory: service
         shell: bash
-        run: ./mvnw --batch-mode test "-Dtest=!SimulationControllerIntegrationTest"
+        run: bash mvnw --batch-mode test "-Dtest=!SimulationControllerIntegrationTest"
 
       # ---- Python ETL lint/type-check (Step 4) ----
       - name: Set up Python
