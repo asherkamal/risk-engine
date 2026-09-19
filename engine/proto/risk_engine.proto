@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+package riskengine;
+
+// Single source of truth for the wire schema between the C++ simulation
+// engine and any client (the Java service in Step 5 generates its stubs
+// from this same file).
+
+message Property {
+  double lat = 1;
+  double lon = 2;
+  // Placeholder per-property dollar exposure until the real Policy/
+  // Portfolio domain model exists (Step 5) -- see engine/apps/cli/main.cpp
+  // for the equivalent synthetic-data note.
+  double insured_value = 3;
+}
+
+message SimulationConfig {
+  double link_radius_km = 1;       // hazard-correlation radius used to build the property graph
+  uint32 max_neighbors = 2;        // cap on out-degree per node; 0 = use engine default
+  uint64 master_seed = 3;
+  uint64 num_scenarios = 4;
+  uint32 num_threads = 5;          // 0 = use hardware_concurrency()
+  double probability_threshold = 6;
+  double intensity_min = 7;
+  double intensity_max = 8;
+  double decay_min = 9;
+  double decay_max = 10;
+}
+
+message RunSimulationRequest {
+  repeated Property properties = 1;
+  SimulationConfig config = 2;
+}
+
+message AggregateStats {
+  uint64 scenario_count = 1;
+  double mean_loss = 2;
+  double p99_loss = 3;
+  double min_loss = 4;
+  double max_loss = 5;
+  double wall_clock_ms = 6;
+  uint32 threads_used = 7;
+}
+
+message RunSimulationResponse {
+  AggregateStats stats = 1;
+}
+
+service RiskEngine {
+  rpc RunSimulation(RunSimulationRequest) returns (RunSimulationResponse);
+}

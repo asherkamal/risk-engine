@@ -2,6 +2,8 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <limits>
+#include <optional>
 #include <vector>
 
 #include "engine/spatial/point.hpp"
@@ -31,6 +33,11 @@ public:
     // called on this hot path.
     std::vector<std::uint32_t> RangeQuery(Point2D center, double radius) const;
 
+    // Returns the id of the single closest point to `center`, or
+    // std::nullopt if the tree is empty. Used to snap a continuous event
+    // epicenter onto the nearest node in the property graph.
+    std::optional<std::uint32_t> FindNearest(Point2D center) const;
+
     std::size_t size() const noexcept { return points_.size(); }
 
 private:
@@ -58,6 +65,14 @@ private:
 
     void RangeQueryRecursive(std::size_t node_idx, Point2D center, double radius_sq,
                               std::vector<std::uint32_t>& out) const;
+
+    // Best-so-far nearest-neighbor descent: visits the child on the query's
+    // side first, then only crosses the splitting plane if it could still
+    // hold something closer than the current best (standard k-d tree NN
+    // pruning, same idea as RangeQuery's pruning but bounded by the running
+    // best distance instead of a fixed radius).
+    void FindNearestRecursive(std::size_t node_idx, Point2D center, double& best_dist_sq,
+                                std::optional<std::uint32_t>& best_id) const;
 
     std::vector<IndexedPoint> points_;
     std::vector<Node> nodes_;

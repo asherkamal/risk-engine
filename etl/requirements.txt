@@ -1,0 +1,5 @@
+# psycopg3 (not psycopg2-binary): no prebuilt psycopg2 wheel exists yet for
+# Python 3.13, and psycopg2 must otherwise build from source against a
+# local pg_config, which this machine doesn't have.
+psycopg[binary]==3.3.6
+requests==2.32.3

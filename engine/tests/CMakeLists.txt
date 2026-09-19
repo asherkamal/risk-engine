@@ -8,6 +8,8 @@ FetchContent_MakeAvailable(Catch2)
 
 add_executable(engine_tests
     test_kdtree.cpp
+    test_graph.cpp
+    test_monte_carlo.cpp
 )
 target_link_libraries(engine_tests PRIVATE engine_core Catch2::Catch2WithMain)
 

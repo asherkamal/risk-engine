@@ -1,0 +1,8 @@
+# Without this, Windows checkouts can convert mvnw's line endings to CRLF,
+# which then fails with a "bad interpreter" error when CI runs it via bash
+# on windows-latest.
+* text=auto
+mvnw text eol=lf
+*.sh text eol=lf
+mvnw.cmd text eol=crlf
+*.bat text eol=crlf

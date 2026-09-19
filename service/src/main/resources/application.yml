@@ -1,0 +1,28 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: risk-engine-service
+  datasource:
+    url: jdbc:postgresql://localhost:5432/riskengine
+    username: riskengine
+    password: riskengine
+  jpa:
+    hibernate:
+      # Schema ownership stays with Flyway (db/migrations, Step 4) -- this
+      # only validates entity mappings against the existing schema at
+      # startup instead of letting Hibernate generate/alter DDL.
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    # Reuses Step 4's migration files directly rather than duplicating them
+    # under this module -- one schema history, whether applied by the
+    # standalone Flyway Docker image or by this app on startup.
+    locations: filesystem:../db/migrations
+    baseline-on-migrate: false
+
+risk-engine:
+  grpc:
+    host: localhost
+    port: 50051

@@ -54,6 +54,47 @@ std::size_t KDTree::Build(std::size_t begin, std::size_t end, int depth) {
     return idx;
 }
 
+std::optional<std::uint32_t> KDTree::FindNearest(Point2D center) const {
+    if (points_.empty()) {
+        return std::nullopt;
+    }
+    double best_dist_sq = std::numeric_limits<double>::infinity();
+    std::optional<std::uint32_t> best_id;
+    FindNearestRecursive(root_, center, best_dist_sq, best_id);
+    return best_id;
+}
+
+void KDTree::FindNearestRecursive(std::size_t node_idx, Point2D center, double& best_dist_sq,
+                                    std::optional<std::uint32_t>& best_id) const {
+    const Node& node = nodes_[node_idx];
+
+    if (node.is_leaf) {
+        for (std::size_t i = node.leaf_begin; i < node.leaf_end; ++i) {
+            const double d = SquaredDistance(points_[i].pos, center);
+            if (d < best_dist_sq) {
+                best_dist_sq = d;
+                best_id = points_[i].id;
+            }
+        }
+        return;
+    }
+
+    const double center_axis_value = AxisValue(center, node.axis);
+    const double diff = center_axis_value - node.split_value;
+
+    if (diff <= 0.0) {
+        FindNearestRecursive(node.left, center, best_dist_sq, best_id);
+        if (diff * diff < best_dist_sq) {
+            FindNearestRecursive(node.right, center, best_dist_sq, best_id);
+        }
+    } else {
+        FindNearestRecursive(node.right, center, best_dist_sq, best_id);
+        if (diff * diff < best_dist_sq) {
+            FindNearestRecursive(node.left, center, best_dist_sq, best_id);
+        }
+    }
+}
+
 std::vector<std::uint32_t> KDTree::RangeQuery(Point2D center, double radius) const {
     std::vector<std::uint32_t> out;
     if (points_.empty()) {

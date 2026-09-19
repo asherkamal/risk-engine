@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-and-test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ---- C++ engine (Steps 1-2) ----
+      # No vcpkg toolchain here on purpose: engine/CMakeLists.txt gates the
+      # gRPC server target (Step 3) behind find_package(gRPC CONFIG QUIET)
+      # and skips it cleanly when gRPC isn't found, so the core engine and
+      # its tests build and run on a bare CMake+compiler install, matching
+      # what these runners already have.
+      - name: Configure engine (CMake)
+        run: cmake -S engine -B engine/build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build engine
+        run: cmake --build engine/build --config Release
+
+      - name: Run engine tests
+        run: ctest --test-dir engine/build --build-config Release --output-on-failure
+
+      # ---- Java service (Step 5) ----
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      # windows-latest has no Docker runtime, so the Testcontainers-backed
+      # SimulationControllerIntegrationTest can't run there; the domain
+      # unit tests still run on both platforms. ubuntu-latest has Docker
+      # natively and runs the full suite, integration test included.
+      - name: Run Java tests (Linux, full suite incl. Testcontainers)
+        if: runner.os == 'Linux'
+        working-directory: service
+        run: ./mvnw --batch-mode test
+
+      - name: Run Java tests (Windows, domain unit tests only)
+        if: runner.os == 'Windows'
+        working-directory: service
+        shell: bash
+        run: ./mvnw --batch-mode test "-Dtest=!SimulationControllerIntegrationTest"
+
+      # ---- Python ETL lint/type-check (Step 4) ----
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install Python lint tools
+        run: pip install ruff mypy
+
+      - name: Install ETL dependencies (for mypy import resolution)
+        working-directory: etl
+        run: pip install -r requirements.txt
+
+      - name: Lint ETL scripts (ruff)
+        working-directory: etl
+        run: ruff check .
+
+      - name: Type-check ETL scripts (mypy)
+        working-directory: etl
+        run: mypy . --ignore-missing-imports
